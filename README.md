@@ -1,151 +1,210 @@
-# CT to MRI Image Translation using Conditional GANs
+# Improving Medical Image Modality Translation with Dual Discriminator Pix2Pix Networks: A CT-to-MRI Study
 
+## Overview
 
+This project presents an enhanced **Pix2Pix Conditional GAN (cGAN)** framework for translating **Computed Tomography (CT)** images into **Magnetic Resonance Imaging (MRI)** images. The proposed architecture introduces a **dual-discriminator** design to improve both local texture generation and global anatomical consistency, resulting in more realistic synthetic MRI images.
 
-## Table of Contents
+The work was developed as part of my **Master of Science in Data Science** dissertation at **Vellore Institute of Technology (VIT), Chennai**. :contentReference[oaicite:0]{index=0}
 
-- [Introduction](#introduction)
-- [Project Overview](#project-overview)
-- [Dataset](#dataset)
-- [Model Architecture](#model-architecture)
-  - [Generator (U-Net)](#generator-u-net)
-  - [Discriminator (PatchGAN)](#discriminator-patchgan)
-  - [Dual Discriminator (Optional)](#dual-discriminator-optional)
-- [Loss Functions](#loss-functions)
-- [Training](#training)
-- [Results](#results)
-- [Evaluation Metrics](#evaluation-metrics)
-- [Usage](#usage)
-- [Setup](#setup)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+---
 
-## Introduction
+## Motivation
 
-This project implements a Conditional Generative Adversarial Network for the task of image-to-image translation, specifically converting Computed Tomography (CT) scans to Magnetic Resonance Imaging (MRI) scans. The goal is to explore the effectiveness of GANs in synthesizing realistic medical images, which has potential applications in medical imaging analysis, data augmentation, and cross-modality image synthesis.
+MRI provides superior soft tissue contrast compared to CT, making it essential for diagnosing neurological disorders. However, MRI acquisition is:
 
-## Project Overview
+- Expensive
+- Time-consuming
+- Less accessible
+- Unsuitable for certain patients with contraindications
 
-We utilize a Pix2Pix-like architecture, comprising a U-Net based generator and a PatchGAN discriminator. The model learns a mapping from source domain images (CT) to target domain images (MRI) by jointly optimizing a adversarial loss and a L1 reconstruction loss. An dual-discriminator setup is explored to enhance the quality and stability of the generated images.
+This project aims to generate high-quality MRI images directly from CT scans using deep learning, potentially improving clinical workflows when MRI is unavailable. :contentReference[oaicite:1]{index=1}
+
+---
+
+## Proposed Architecture
+
+The proposed model consists of:
+
+- **Generator**
+  - U-Net architecture
+  - Skip connections for preserving anatomical structures
+
+- **Discriminators**
+  - PatchGAN Discriminator
+    - Learns local textures and fine details
+  - Global (Deep) Discriminator
+    - Preserves overall anatomical consistency
+
+The generator receives a CT image as input and synthesizes its corresponding MRI image while both discriminators jointly guide the adversarial learning process. :contentReference[oaicite:2]{index=2}
+
+---
+
+## Features
+
+- CT → MRI image translation
+- Dual-discriminator Pix2Pix architecture
+- U-Net generator with skip connections
+- Structural preservation of anatomical regions
+- Quantitative evaluation using SSIM and PSNR
+- Training visualization for Generator and Discriminator losses
+
+---
 
 ## Dataset
 
-The model was trained on a dataset consisting of paired CT and MRI images. 
+- Paired CT–MRI brain image dataset
+- Images resized to **128 × 128**
+- Pixel normalization to **[-1, 1]**
+- Dataset split into:
+  - Training
+  - Validation
+  - Testing
 
-- **Source:** The dataset used is `archive (1).zip` which contains corresponding CT and MRI images. 
-- **Preprocessing:** Images were resized to 128x128 pixels, converted to grayscale, and normalized to the range [-1, 1].
-- **Structure:** The dataset is organized into `trainA` (CT images) and `trainB` (MRI images).
+:contentReference[oaicite:3]{index=3}
 
-## Model Architecture
-
-The cGAN architecture consists of a Generator and one or two Discriminators.
-
-### Generator (U-Net)
-
-The generator is a U-Net like architecture with skip connections. This allows the generator to effectively capture both low-level and high-level features, crucial for detailed image synthesis.
-
-- **Encoder:** Downsampling path with convolutional layers, Batch Normalization, and LeakyReLU activations.
-- **Bottleneck:** A central layer connecting the encoder and decoder.
-- **Decoder:** Upsampling path with transposed convolutional layers, Batch Normalization, ReLU activations, and skip connections from the encoder.
-- **Output:** A final convolutional layer with Tanh activation to output images in the normalized range.
-
-### Discriminator (PatchGAN)
-
-The discriminator is a PatchGAN, which classifies 70x70 pixel patches of the image as real or fake. This encourages the generator to produce high-frequency details.
-
-- **Architecture:** Consists of several convolutional layers, Batch Normalization, and LeakyReLU activations.
-- **Output:** A single-channel output representing the probability of a patch being real.
-
-### Dual Discriminator 
-
-In an advanced setup, two discriminators are used:
-
-1.  **Patch Discriminator (D1):** Focuses on local image consistency.
-2.  **Deep Discriminator (D2):** Uses a deeper architecture to assess global image realism. 
-
-Both discriminators are trained with Spectral Normalization to stabilize training and improve performance.
-
-## Loss Functions
-
-The overall objective function for the cGAN combines an adversarial loss and an L1 reconstruction loss:
-
-- **Adversarial Loss (GAN Loss):** Binary Cross-Entropy Loss (`nn.BCEWithLogitsLoss` for dual discriminator, `nn.BCELoss` for single discriminator) applied to the discriminator outputs to encourage the generator to produce images that are indistinguishable from real ones.
-  - For the Generator: `log(D(G(x)))`
-  - For the Discriminator: `log(D(y)) + log(1 - D(G(x)))`
-
-- **L1 Reconstruction Loss:** Mean Absolute Error (`nn.L1Loss`) between the generated image and the ground truth image. This term encourages pixel-wise accuracy and prevents mode collapse. The L1 loss is weighted by a hyperparameter `L1_LAMBDA` (set to 100).
-  - `L_1(G) = ||y - G(x)||_1`
-
-- **Total Generator Loss:** `L_GAN(G) + L_1(G)`
-- **Total Discriminator Loss:** `(L_D1 + L_D2) / 2` (for dual discriminator) or `(L_D_real + L_D_fake) / 2` (for single discriminator)
-
-## Training
-
-- **Optimizers:** Adam optimizer with `lr=2e-4`, `beta1=0.5`, `beta2=0.999` for both generator and discriminators.
-- **Epochs:** Trained for 50 epochs.
-- **Batch Size:** 1 (for dual discriminator setup) or 4 (for single discriminator setup).
-- **Device:** Training can be performed on CPU or GPU (CUDA if available).
-- **Logging:** Training losses (Generator, Discriminator, L1), SSIM, and PSNR are logged and saved to a CSV file (`metrics_log_cpu.csv`).
-- **Samples:** Generated samples are saved periodically to visualize training progress.
-- **Checkpoints:** Model weights are saved at each epoch, and the best model based on L1 loss is also saved.
-
-## Results
-
-The model demonstrates the ability to translate CT images to realistic MRI images. Visual examples and quantitative metrics show improvement over training epochs.
-
-- **Visual Examples:** Sample images showing input CT, generated MRI, and ground truth MRI. (Include images from your `samples` directory here)
-  ![Sample Output Epoch X](path/to/samples/epoch_00XX.png)
-
-- **Loss Curves:** Plots of Generator and Discriminator losses over epochs.
-  ![Loss Curves](path/to/training_output_pix2pix/loss_curves_cpu.png)
-
-- **SSIM and PSNR Trends:** Plots showing the trend of Structural Similarity Index (SSIM) and Peak Signal-to-Noise Ratio (PSNR) over epochs.
-  ![SSIM PSNR Trends](path/to/training_output_pix2pix/ssim_psnr_cpu.png)
-
-*Note: The images will be saved in the `samples` folder within your Google Drive output directory.* 
+---
 
 ## Evaluation Metrics
 
-- **SSIM (Structural Similarity Index):** Measures the structural similarity between the generated and real images. Higher values indicate better perceptual quality.
-- **PSNR (Peak Signal-to-Noise Ratio):** Quantifies the ratio between the maximum possible power of a signal and the power of corrupting noise that affects the fidelity of its representation. Higher PSNR values indicate less distortion.
-- **L1 Loss:** Provides a pixel-wise measure of reconstruction accuracy.
+The model is evaluated using:
 
-## Usage
+- Structural Similarity Index (SSIM)
+- Peak Signal-to-Noise Ratio (PSNR)
+- L1 Loss
+- Generator Loss
+- Discriminator Loss
 
-### Training the Model
+These metrics assess structural fidelity, reconstruction quality, and training stability. :contentReference[oaicite:4]{index=4}
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/<YOUR_USERNAME>/<YOUR_REPOSITORY_NAME>.git
-    cd <YOUR_REPOSITORY_NAME>
-    ```
-2.  **Download Dataset:** Download the `archive (1).zip` dataset and place it in the project root directory or update the `zip_path` in the notebook.
-3.  **Run the Notebook:** Execute the provided Jupyter notebook (or Python scripts) to train the model. Ensure you have the necessary dependencies installed.
+---
 
-### Generating Images (Inference)
+## Technologies Used
 
-Load a trained generator model and provide new CT images as input to generate MRI images.
+- Python
+- PyTorch
+- OpenCV
+- NumPy
+- Pandas
+- Matplotlib
+- PIL
+- scikit-image
+- Google Colab
 
-```python
-# Example of loading a generator and generating images
-import torch
-from torchvision.transforms import transforms
-from PIL import Image
+:contentReference[oaicite:5]{index=5}
 
-# Assuming G is your trained generator model
-# Assuming transform is the same as used during training
-# Assuming device is set to 'cpu' or 'cuda'
+---
 
-G.eval() # Set generator to evaluation mode
+## Project Structure
 
-# Load an example CT image (replace with your path)
-ct_image_path = "path/to/your/new_ct_image.png"
-ct_img = Image.open(ct_image_path).convert("L")
-ct_tensor = transform(ct_img).unsqueeze(0).to(device) # Add batch dimension
+```
+├── dataset/
+│   ├── train/
+│   ├── validation/
+│   └── test/
+│
+├── models/
+│   ├── generator.py
+│   ├── patch_discriminator.py
+│   └── global_discriminator.py
+│
+├── training/
+│   ├── train.py
+│   └── losses.py
+│
+├── evaluation/
+│   ├── metrics.py
+│   └── inference.py
+│
+├── results/
+│   ├── generated_images/
+│   ├── loss_curves/
+│   └── comparison_images/
+│
+├── notebooks/
+├── README.md
+└── requirements.txt
+```
 
-with torch.no_grad():
-    generated_mri = G(ct_tensor)
+*(Modify the structure above according to your repository.)*
 
-# Post-process and save/display the generated MRI
-# (e.g., denormalize, convert to PIL Image, save)
+---
+
+## Results
+
+The proposed dual-discriminator model demonstrated:
+
+- Improved structural similarity (SSIM)
+- Higher PSNR
+- Lower L1 reconstruction error
+- Stable adversarial training
+- Better preservation of anatomical structures than the conventional single-discriminator Pix2Pix model
+
+Both quantitative metrics and qualitative visual comparisons indicate improved MRI synthesis quality. :contentReference[oaicite:6]{index=6}
+
+---
+
+## Limitations
+
+Current limitations include:
+
+- Limited paired CT–MRI dataset
+- Training for only 42 epochs
+- 2D slice-based learning without volumetric consistency
+- Reduced preservation of fine anatomical textures
+
+Future work includes:
+
+- Larger datasets
+- 3D medical image translation
+- Hybrid perceptual and structural loss functions
+- Multi-scale adversarial learning
+- Diffusion-based medical image translation
+
+:contentReference[oaicite:7]{index=7}
+
+---
+
+## Future Improvements
+
+- 3D volumetric CT-to-MRI synthesis
+- Diffusion model-based image translation
+- Attention-enhanced U-Net
+- Clinical validation by radiologists
+- Foundation model integration for medical imaging
+
+---
+
+## Citation
+
+If you use this work, please cite:
+
+```bibtex
+@mastersthesis{devika2025ctmri,
+  title={Improving Medical Image Modality Translation with Dual Discriminator Pix2Pix Networks: A CT-to-MRI Study},
+  author={Devika P},
+  school={Vellore Institute of Technology, Chennai},
+  year={2025}
+}
+```
+
+---
+
+## Author
+
+**Devika P**
+
+M.Sc. Data Science  
+Vellore Institute of Technology, Chennai
+
+**Research Interests**
+
+- Medical Image Analysis
+- Computer Vision
+- Generative AI
+- Diffusion Models
+- Deep Learning
+
+
+## License
+
+This project is intended for academic and research purposes.
