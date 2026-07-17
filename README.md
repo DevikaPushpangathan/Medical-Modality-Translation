@@ -125,8 +125,6 @@ These metrics assess structural fidelity, reconstruction quality, and training s
 └── requirements.txt
 ```
 
-*(Modify the structure above according to your repository.)*
-
 ---
 
 ## Results
@@ -172,20 +170,6 @@ Future work includes:
 - Clinical validation by radiologists
 - Foundation model integration for medical imaging
 
----
-
-## Citation
-
-If you use this work, please cite:
-
-```bibtex
-@mastersthesis{devika2025ctmri,
-  title={Improving Medical Image Modality Translation with Dual Discriminator Pix2Pix Networks: A CT-to-MRI Study},
-  author={Devika P},
-  school={Vellore Institute of Technology, Chennai},
-  year={2025}
-}
-```
 
 ---
 
